@@ -1,0 +1,1 @@
+Versión 1.9: controles globales y permanentes Guardar respaldo / Cargar respaldo. Importación centralizada; se conserva la sincronización de nómina y los módulos existentes. Abrir index.html desde la carpeta completa.

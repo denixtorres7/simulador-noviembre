@@ -1,0 +1,75 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Contratos por modalidad de vinculación</title><style>
+:root{--bg:#f3f1eb;--fg:#1d3034;--card:#fff;--line:#a3b0ad;--accent:#165b61;--on:#fff}
+html[data-theme=contrast],html[data-theme=lowvision]{--bg:#000;--fg:#fff;--card:#111;--line:#fff;--accent:#ffe500;--on:#000}
+html[data-theme=redgreen]{--bg:#f4f7fa;--fg:#1a2a3c;--card:#fff;--line:#9aacc0;--accent:#22518f;--on:#fff}
+html[data-theme=blueyellow]{--bg:#f7f2f5;--fg:#302237;--card:#fff;--line:#bca8b9;--accent:#7c3678;--on:#fff}
+html[data-theme=soft]{--bg:#f1eee8;--fg:#303b39;--card:#faf8f3;--line:#aaa;--accent:#4b6261;--on:#fff}
+html[data-font=large]{font-size:120%}html[data-font=larger]{font-size:140%}html[data-dyslexic=on]{font-family:Verdana,sans-serif}
+*{box-sizing:border-box}body{font:1rem/1.5 system-ui,sans-serif;color:var(--fg);background:var(--bg);margin:0;padding:20px}main{max-width:1000px;margin:auto}
+section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin:12px 0}label{display:block;margin:10px 0}input,select,textarea,button{font:inherit;padding:9px;max-width:100%;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg)}input:not([type=checkbox]),textarea,select{width:100%}button{cursor:pointer}button.primary{background:var(--accent);color:var(--on)}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}.controls{display:flex;flex-wrap:wrap;gap:8px}.warning{border-left:5px solid #bb7b26;padding:10px;background:var(--card)}#document{white-space:pre-wrap;line-height:1.65}small{opacity:.85}@media print{.no-print{display:none!important}body{background:white;color:black}section{border:0}#document{font-size:11pt} @page{margin:18mm}}
+</style></head><body><main><h1>Contratos según modalidad de vinculación</h1><p>Genera un borrador por cada rol registrado en Nómina. El cargo no determina la modalidad jurídica: se utiliza la selección efectuada en la calculadora.</p>
+<section class="no-print"><div class="controls"><label>Paleta<select id="theme"><option value="standard">Estándar</option><option value="contrast">Alto contraste</option><option value="redgreen">Alternativa rojo-verde</option><option value="blueyellow">Alternativa azul-amarillo</option><option value="lowvision">Baja visión</option><option value="soft">Suave</option></select></label><label>Tamaño de texto<select id="font"><option value="normal">Normal</option><option value="large">Grande</option><option value="larger">Muy grande</option></select></label><button id="read">Leer texto seleccionado</button><button id="json">Exportar JSON</button><button id="load">Importar JSON</button><input type="file" accept=".json" id="file" hidden></div></section>
+<section class="no-print"><h2>Rol y modalidad</h2><label>Seleccionar rol guardado en Nómina<select id="role"></select></label><p id="origin" role="status"></p><div class="grid"><label>Nombre completo de la persona contratada<input id="person"></label><label>Documento de identidad<input id="personId"></label><label>Nombre legal del empleador o contratante<input id="employer"></label><label>NIT / documento del contratante<input id="employerId"></label><label>Representante autorizado<input id="representative"></label><label>Ciudad de ejecución<input id="city"></label><label>Fecha de inicio<input id="start" type="date"></label><label>Fecha de terminación (si aplica)<input id="end" type="date"></label><label>Lugar / modalidad de trabajo<input id="workplace"></label><label>Jornada u horario (si aplica)<input id="schedule"></label><label>Forma y periodicidad de pago<input id="payment"></label><label>Supervisor o responsable<input id="supervisor"></label></div><label>Funciones, actividades u obligaciones específicas<textarea id="duties" rows="4"></textarea></label><label>Condiciones adicionales acordadas<textarea id="notes" rows="3"></textarea></label><button class="primary" id="preview">Actualizar vista previa</button> <button id="print">Vista previa / guardar PDF</button></section>
+<section><h2>Documento para revisión</h2><p class="warning" id="warning" role="status"></p><div id="document"></div></section>
+</main><script>
+const KEY='svc-role-contracts-v1',PAYROLL='svc_payroll_v01',fields=['person','personId','employer','employerId','representative','city','start','end','workplace','schedule','payment','supervisor','duties','notes'];
+const $=id=>document.getElementById(id);let state={};try{state=JSON.parse(localStorage.getItem(KEY)||'{}')||{}}catch{}
+let payroll=[];try{payroll=JSON.parse(localStorage.getItem(PAYROLL)||'[]')}catch{}if(!Array.isArray(payroll))payroll=[];
+const types={labor:'Contrato laboral (modalidad específica por definir)',service:'Contrato de prestación de servicios independientes',learning:'Contrato de aprendizaje (revisión normativa obligatoria)',practice:'Convenio de práctica o vinculación formativa (revisión institucional obligatoria)'};
+function save(){localStorage.setItem(KEY,JSON.stringify(state))}
+function settings(s){if(!s)return;for(const k of ['theme','font','dyslexic'])if(s[k])document.documentElement.dataset[k]=s[k]}
+window.addEventListener('message',e=>{if(e.data?.type==='svc-global-settings')settings(e.data.settings)});
+try{settings({theme:localStorage.getItem('svc-shell-theme')||'standard',font:localStorage.getItem('svc-shell-font')||'normal',dyslexic:localStorage.getItem('svc-shell-dyslexic')||'off'})}catch{}
+$('theme').onchange=e=>{document.documentElement.dataset.theme=e.target.value;localStorage.setItem('svc-shell-theme',e.target.value)};
+$('font').onchange=e=>{document.documentElement.dataset.font=e.target.value;localStorage.setItem('svc-shell-font',e.target.value)};
+$('read').onclick=()=>{const s=String(getSelection()).trim();if(!s)return alert('Selecciona un fragmento del texto.');speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(s);u.lang='es-CO';speechSynthesis.speak(u)};
+const opts=document.createElement('option');opts.value='';opts.textContent='Seleccionar rol de Nómina';$('role').append(opts);
+for(const r of payroll){const o=document.createElement('option');o.value=r.id;o.textContent=(r.role||'Sin rol')+' — '+(types[r.contract]||'Modalidad no reconocida');$('role').append(o)}
+if(!payroll.length)$('origin').textContent='No hay roles registrados en Nómina en este almacenamiento. Primero guarda los roles en la calculadora.';
+function current(){return payroll.find(x=>x.id===$('role').value)}
+function value(k){return ($(k).value||'').trim()||'[POR COMPLETAR]'}
+function render(){const r=current();if(!r){$('document').textContent='Selecciona un rol para generar su borrador contractual.';$('warning').textContent='Sin rol seleccionado. No se puede generar un contrato para firma.';return}
+const type=r.contract;const monthly=Number(r.salary)||0;const rate=monthly?new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(monthly):'[VALOR POR ACORDAR]';
+let clauses=[];
+if(type==='labor')clauses=[
+'1. NATURALEZA. Las partes acuerdan una vinculación laboral con las obligaciones y derechos previstos por la legislación colombiana. Debe seleccionarse y documentarse si es a término indefinido, fijo, por obra o labor u otra modalidad legalmente aplicable.',
+'2. FUNCIONES. La persona trabajadora desempeñará las funciones acordadas, bajo las condiciones de subordinación propias de la relación laboral.',
+'3. REMUNERACIÓN. Salario mensual registrado en Nómina: '+rate+'. Verificar salario mínimo, recargos, prestaciones, seguridad social y demás conceptos legalmente exigibles.',
+'4. JORNADA, DESCANSOS Y LUGAR. Jornada: '+value('schedule')+'. Lugar y modalidad: '+value('workplace')+'. Se respetarán los límites legales vigentes.',
+'5. DURACIÓN Y TERMINACIÓN. Inicio: '+value('start')+'. Terminación, cuando proceda: '+value('end')+'. Las causales y procedimientos se regirán por la legislación laboral.',
+'6. SEGURIDAD Y CONFIDENCIALIDAD. El empleador garantizará sus obligaciones en seguridad y salud en el trabajo; la persona trabajadora observará los deberes legítimos de reserva.',
+'7. PROPIEDAD INTELECTUAL. La titularidad y explotación de obras creadas en desarrollo del vínculo se determinarán según la ley y los acuerdos escritos válidos; se respetan los derechos morales.'
+];else if(type==='service')clauses=[
+'1. NATURALEZA. Se contratan servicios independientes para ejecutar las actividades descritas, sin subordinación laboral. La denominación contractual no sustituye la realidad de la ejecución.',
+'2. OBJETO Y ENTREGABLES. Actividades y resultados: '+value('duties')+'. Los cambios de alcance requerirán acuerdo.',
+'3. HONORARIOS. Referencia de costo registrada en Nómina: '+rate+'. Esta cifra NO constituye automáticamente el valor contractual: las partes deben confirmar honorarios, entregables, impuestos y forma de pago.',
+'4. AUTONOMÍA Y COORDINACIÓN. El contratista organizará la ejecución con autonomía técnica, sin perjuicio de los hitos y entregables acordados. Supervisor de seguimiento: '+value('supervisor')+'.',
+'5. APORTES Y OBLIGACIONES. Cada parte cumplirá las obligaciones de seguridad social, riesgos laborales y tributarias que legalmente le correspondan según las condiciones reales del contrato.',
+'6. PROPIEDAD INTELECTUAL Y CONFIDENCIALIDAD. Se delimitarán por escrito los derechos de explotación, usos autorizados, entrega de archivos y obligaciones de reserva.',
+'7. TERMINACIÓN. Se pactarán causales, avisos y liquidación de servicios efectivamente ejecutados, respetando la ley.'
+];else if(type==='learning')clauses=[
+'1. MODALIDAD. Borrador para contrato de aprendizaje. Es indispensable verificar el régimen legal vigente, la elegibilidad de la persona y de la entidad patrocinadora y las condiciones exigidas por la institución formativa.',
+'2. PLAN FORMATIVO. Deben identificarse programa, institución, fase, tutor, actividades formativas y resultados de aprendizaje. Actividades propuestas: '+value('duties')+'.',
+'3. APOYOS Y COBERTURAS. Los valores de Nómina no determinan automáticamente el apoyo, remuneración, afiliaciones o prestaciones aplicables. Deben ajustarse a la normativa vigente y a la fase correspondiente.',
+'4. SEGUIMIENTO. Tutor o responsable: '+value('supervisor')+'. La duración, evaluación y terminación deben coordinarse con la institución competente.'
+];else clauses=[
+'1. NATURALEZA. Borrador de convenio de práctica o vinculación formativa. Se debe verificar si corresponde a práctica laboral, pasantía, convenio educativo u otra figura legalmente permitida.',
+'2. PARTICIPANTES. Deben identificarse institución educativa, estudiante, escenario de práctica y tutor o monitor, además de los responsables de las coberturas legales.',
+'3. PLAN DE PRÁCTICA. Actividades formativas: '+value('duties')+'. Deben establecerse objetivos de aprendizaje, seguimiento, evaluación y duración.',
+'4. RECONOCIMIENTOS Y SEGURIDAD. El valor de Nómina es una referencia de simulación y no determina por sí mismo la remuneración ni las afiliaciones aplicables. Verificar requisitos normativos e institucionales.'
+];
+const missing=['person','personId','employer','employerId','start','duties'].filter(k=>!$(k).value.trim());
+const warnings=[];if(missing.length)warnings.push('Faltan datos esenciales: '+missing.join(', ')+'.');if(type==='labor')warnings.push('Falta escoger la submodalidad laboral y comprobar la jornada y las condiciones vigentes.');if(type==='learning'||type==='practice')warnings.push('Requiere verificación normativa e institucional específica antes de firmar.');if(type==='service')warnings.push('Confirma que la ejecución sea realmente independiente y acuerda honorarios; el costo de Nómina no equivale al precio del contrato.');
+$('warning').textContent='BORRADOR ACADÉMICO — NO APTO PARA FIRMA. '+warnings.join(' ');
+const head=['BORRADOR — '+(types[type]||'MODALIDAD POR VERIFICAR'),'Lugar: '+value('city'),'CONTRATANTE / EMPLEADOR: '+value('employer')+' — '+value('employerId'),'Representante: '+value('representative'),'PERSONA VINCULADA: '+value('person')+' — '+value('personId'),'Rol o función: '+(r.role||'[ROL]'),'Inicio: '+value('start')+' | Fin, si aplica: '+value('end'),'Forma de pago: '+value('payment'),''];
+$('document').textContent=head.concat(clauses,['','CONDICIONES PARTICULARES: '+value('notes'),'','FIRMAS (solo tras revisión y validación jurídica)','Contratante: ____________________','Persona vinculada: ____________________']).join('\n\n');
+}
+function loadRole(){const r=current();if(!r){render();return}const data=state[r.id]||{};fields.forEach(k=>$(k).value=data[k]||'');$('origin').textContent='Modalidad tomada de Nómina: '+(types[r.contract]||'No reconocida')+'. Rol: '+(r.role||'Sin identificar');render()}
+$('role').onchange=loadRole;
+fields.forEach(k=>$(k).addEventListener('input',()=>{const r=current();if(r){state[r.id]??={};state[r.id][k]=$(k).value;save()}render()}));
+$('preview').onclick=render;$('print').onclick=()=>{render();window.print()};
+$('json').onclick=()=>{save();const a=document.createElement('a'),u=URL.createObjectURL(new Blob([JSON.stringify({schema:KEY,data:state},null,2)],{type:'application/json'}));a.href=u;a.download='contratos_roles.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),1500)};
+$('load').onclick=()=>$('file').click();
+$('file').onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(obj.schema!==KEY||!obj.data||typeof obj.data!=='object')throw Error('JSON de contratos no compatible');if(!confirm('¿Reemplazar los borradores contractuales guardados?'))return;state=obj.data;save();loadRole()}catch(err){alert(err.message)}};
+loadRole();
+</script></body></html>
